@@ -11,11 +11,12 @@ import {
     Section,
     Appointment
  } from './styles';
+import { isToday, format } from 'date-fns';
+import ptBR from 'date-fns/locale/pt-BR';
 import logoImg from '../../assets/logo.svg';
 import { FiPower, FiClock } from 'react-icons/fi';
 import { useAuth } from '../../hooks/auth';
 import DayPicker,  { DayModifiers } from 'react-day-picker';
-
 import 'react-day-picker/lib/style.css';
 import api from '../../services/api';
 
@@ -24,12 +25,22 @@ interface MonthAvailabilityItem {
     available: boolean;
 }
 
+interface Appointment {
+   id: string;
+   date: string;
+   user: {
+       name: string;
+       avatar_url: string;
+   } 
+}
+
 const Dashboard: React.FC = () => {
     const { signOut, user } = useAuth();
     
     const [selectDate, setSelectDate] = useState(new Date());
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [monthAvailability, setMonthAvailability] = useState<MonthAvailabilityItem[]>([]);
+    const [appointments, setAppointments] = useState<Appointment[]>([]);
 
     const handleDateChange = useCallback((day: Date, modifiers: DayModifiers) => {
         if (modifiers.available) {
@@ -65,6 +76,29 @@ const Dashboard: React.FC = () => {
         return dates;
     }, [currentMonth, monthAvailability])
     
+    const selectedDateAsText = useMemo(() => {
+        return format(selectDate, "'Dia' dd 'de' MMMM",  {
+            locale: ptBR,
+        });
+    }, [selectDate]);
+
+    const selectedWeekDay = useMemo(() => {
+        return format(selectDate, 'cccc', {locale: ptBR })
+    }, [selectDate]);
+
+    useEffect(() => {
+        api.get('/appointments/me', {
+            params: {
+                year: selectDate.getFullYear(),
+                month: selectDate.getMonth() + 1,
+                day: selectDate.getDate(),
+            },
+        })
+        .then(response => {
+            setAppointments(response.data);
+        });
+    }, [selectDate]);
+
     return (
         <Container>
             <Header>
@@ -90,9 +124,9 @@ const Dashboard: React.FC = () => {
                 <Schedule>
                     <h1>Horários agendados</h1> 
                     <p>
-                        <span>Hoje</span>
-                        <span>Dia 06</span>
-                        <span>Segunda-feira</span>
+                       {isToday(selectDate) &&  <span>Hoje</span>}
+                        <span>{selectedDateAsText}</span>
+                        <span>{selectedWeekDay}</span>
                     </p>    
 
                     <NextAppointment>
